@@ -62,7 +62,7 @@ async def run_agent(request: Request):
 llm_greeting = ChatOpenAI(
     model_name="gpt-3.5-turbo",
     temperature=0.7,
-    openai_api_key="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"  # replace with your key
+    openai_api_key=os.environ.get("OPENAI_API_KEY")
 )
 
 @app.post("/diwali-greet/")
