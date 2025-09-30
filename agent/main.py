@@ -9,52 +9,48 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
 # -----------------------------
-# Pydantic v2 Compatibility Patch for OpenAPISpec
-# -----------------------------
-if not hasattr(OpenAPISpec, "parse_obj"):
-    def parse_obj(cls, obj):
-        # Uses Pydantic v2's model_validate instead of parse_obj
-        return cls.model_validate(obj)
-    OpenAPISpec.parse_obj = classmethod(parse_obj)
-
-# -----------------------------
 # FastAPI App
 # -----------------------------
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Best practice: change to frontend domain in production
+    allow_origins=["*"],  # Best practice: Change to your frontend domain in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # -----------------------------
-# File Path Setup
+# File Path Setup (Fix for deployment)
 # -----------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OPENAPI_PATH = os.path.join(BASE_DIR, "wotnot_openapi.json")
 
 if not os.path.exists(OPENAPI_PATH):
-    raise FileNotFoundError(f"'wotnot_openapi.json' not found at {OPENAPI_PATH}")
+    raise FileNotFoundError(f"The 'wotnot_openapi.json' file was not found at {OPENAPI_PATH}")
 
 # -----------------------------
-# Environment Variables
+# Environment Variable Checks
 # -----------------------------
-required_env_vars = ["OPENAI_API_KEY"]
+required_env_vars = [
+    "OPENAI_API_KEY"
+]
 missing_vars = [var for var in required_env_vars if not os.environ.get(var)]
 if missing_vars:
     raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
 # -----------------------------
-# Agent 1: OpenAPI agent (WotNot)
+# Agent 1: OpenAPI agent (WotNot with OpenAI GPT)
 # -----------------------------
 try:
     with open(OPENAPI_PATH, "r") as f:
         openapi_raw = f.read()
 
     spec = OpenAPISpec.from_text(openapi_raw)
+    # The base URL is often specified in the spec, but can be overridden
+    # spec.base_url = "https://api.wotnot.io" 
+
     requests_toolkit = RequestsToolkit(spec=spec)
     tools = requests_toolkit.get_tools()
 
@@ -67,7 +63,7 @@ try:
     agent = initialize_agent(
         tools=tools,
         llm=llm_agent,
-        agent=AgentType.OPENAI_FUNCTIONS,
+        agent=AgentType.OPENAI_FUNCTIONS, 
         verbose=True
     )
 except Exception as e:
@@ -87,9 +83,8 @@ async def run_agent(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent execution failed: {str(e)}")
 
-
 # -----------------------------
-# Agent 2: Diwali Greeting
+# Agent 2: Diwali Greeting (OpenAI GPT)
 # -----------------------------
 try:
     llm_greeting = ChatOpenAI(
