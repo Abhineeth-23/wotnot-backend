@@ -9,6 +9,15 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
 # -----------------------------
+# Pydantic v2 Compatibility Patch
+# -----------------------------
+# This fixes the 'super' object has no attribute 'parse_obj' error
+if not hasattr(OpenAPISpec, "parse_obj"):
+    def parse_obj(cls, obj):
+        return cls.model_validate(obj)
+    OpenAPISpec.parse_obj = classmethod(parse_obj)
+
+# -----------------------------
 # FastAPI App
 # -----------------------------
 app = FastAPI()
