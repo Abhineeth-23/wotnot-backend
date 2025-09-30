@@ -2,8 +2,6 @@ import os
 import json
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-# REMOVED: No longer need Bedrock
-# from langchain_community.llms import Bedrock 
 from langchain.agents import initialize_agent, AgentType
 from langchain_community.agent_toolkits.openapi.toolkit import RequestsToolkit
 from langchain_community.utilities.openapi import OpenAPISpec
@@ -24,14 +22,17 @@ app.add_middleware(
 )
 
 # -----------------------------
-# Environment & File Checks (Crucial for Deployment)
+# File Path Setup (Fix for deployment)
 # -----------------------------
-# Check for required files on startup
-if not os.path.exists("wotnot_openapi.json"):
-    raise FileNotFoundError("The 'wotnot_openapi.json' file was not found. Make sure it's in your repository.")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OPENAPI_PATH = os.path.join(BASE_DIR, "wotnot_openapi.json")
 
-# Check for required environment variables on startup
-# REMOVED: AWS variables are no longer needed
+if not os.path.exists(OPENAPI_PATH):
+    raise FileNotFoundError(f"The 'wotnot_openapi.json' file was not found at {OPENAPI_PATH}")
+
+# -----------------------------
+# Environment Variable Checks
+# -----------------------------
 required_env_vars = [
     "OPENAI_API_KEY"
 ]
@@ -39,12 +40,11 @@ missing_vars = [var for var in required_env_vars if not os.environ.get(var)]
 if missing_vars:
     raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
-
 # -----------------------------
 # Agent 1: OpenAPI agent (WotNot with OpenAI GPT)
 # -----------------------------
 try:
-    with open("wotnot_openapi.json", "r") as f:
+    with open(OPENAPI_PATH, "r") as f:
         openapi_raw = f.read()
 
     spec = OpenAPISpec.from_text(openapi_raw)
@@ -54,14 +54,12 @@ try:
     requests_toolkit = RequestsToolkit(spec=spec)
     tools = requests_toolkit.get_tools()
 
-    # REPLACED: Bedrock LLM with ChatOpenAI
     llm_agent = ChatOpenAI(
         model_name="gpt-3.5-turbo",
         temperature=0.2,
         openai_api_key=os.environ.get("OPENAI_API_KEY")
     )
 
-    # UPDATED: AgentType.OPENAI_FUNCTIONS is better suited for OpenAI models
     agent = initialize_agent(
         tools=tools,
         llm=llm_agent,
@@ -69,7 +67,6 @@ try:
         verbose=True
     )
 except Exception as e:
-    # This will catch errors during initialization
     raise RuntimeError(f"Failed to initialize the WotNot agent: {e}") from e
 
 
@@ -81,12 +78,10 @@ async def run_agent(request: Request):
         raise HTTPException(status_code=400, detail="Prompt is required.")
     
     try:
-        # Using agent.invoke for modern LangChain
         result = agent.invoke({"input": prompt})
         return {"response": result.get("output")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent execution failed: {str(e)}")
-
 
 # -----------------------------
 # Agent 2: Diwali Greeting (OpenAI GPT)
@@ -108,10 +103,8 @@ async def diwali_greeting(request: Request):
     prompt = f"Write a short, warm, festive Diwali greeting message for {name}."
     
     try:
-        # Using llm.invoke for modern LangChain
         message = HumanMessage(content=prompt)
         greeting_response = llm_greeting.invoke([message])
         return {"greeting": greeting_response.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Greeting generation failed: {str(e)}")
-
