@@ -2,9 +2,8 @@ import os
 import json
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from langchain.agents import initialize_agent, AgentType
-from langchain_community.agent_toolkits.openapi.toolkit import RequestsToolkit
-from langchain_community.utilities.openapi import OpenAPISpec
+from langchain.agents import create_openapi_agent
+from langchain_community.agent_toolkits.openapi.spec import OpenAPISpec
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
@@ -22,7 +21,7 @@ app.add_middleware(
 )
 
 # -----------------------------
-# File Path Setup (Fix for deployment)
+# File Path Setup
 # -----------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OPENAPI_PATH = os.path.join(BASE_DIR, "wotnot_openapi.json")
@@ -33,26 +32,17 @@ if not os.path.exists(OPENAPI_PATH):
 # -----------------------------
 # Environment Variable Checks
 # -----------------------------
-required_env_vars = [
-    "OPENAI_API_KEY"
-]
-missing_vars = [var for var in required_env_vars if not os.environ.get(var)]
-if missing_vars:
-    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+if not os.environ.get("OPENAI_API_KEY"):
+    raise ValueError("Missing required environment variable: OPENAI_API_KEY")
 
 # -----------------------------
-# Agent 1: OpenAPI agent (WotNot with OpenAI GPT)
+# Agent 1: OpenAPI agent (WotNot with OpenAI GPT) - NEW METHOD
 # -----------------------------
 try:
     with open(OPENAPI_PATH, "r") as f:
         openapi_raw = f.read()
 
     spec = OpenAPISpec.from_text(openapi_raw)
-    # The base URL is often specified in the spec, but can be overridden
-    # spec.base_url = "https://api.wotnot.io" 
-
-    requests_toolkit = RequestsToolkit(spec=spec)
-    tools = requests_toolkit.get_tools()
 
     llm_agent = ChatOpenAI(
         model_name="gpt-3.5-turbo",
@@ -60,10 +50,10 @@ try:
         openai_api_key=os.environ.get("OPENAI_API_KEY")
     )
 
-    agent = initialize_agent(
-        tools=tools,
+    # This is the new, more robust way to create the agent
+    agent = create_openapi_agent(
         llm=llm_agent,
-        agent=AgentType.OPENAI_FUNCTIONS, 
+        spec=spec,
         verbose=True
     )
 except Exception as e:
@@ -78,13 +68,15 @@ async def run_agent(request: Request):
         raise HTTPException(status_code=400, detail="Prompt is required.")
     
     try:
+        # Note: The input format for invoke might differ slightly with the new agent.
+        # We start with the standard way.
         result = agent.invoke({"input": prompt})
         return {"response": result.get("output")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent execution failed: {str(e)}")
 
 # -----------------------------
-# Agent 2: Diwali Greeting (OpenAI GPT)
+# Agent 2: Diwali Greeting (OpenAI GPT) - No changes needed here
 # -----------------------------
 try:
     llm_greeting = ChatOpenAI(
@@ -108,3 +100,7 @@ async def diwali_greeting(request: Request):
         return {"greeting": greeting_response.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Greeting generation failed: {str(e)}")
+
+@app.get("/")
+def read_root():
+    return {"status": "AI backend is running"}
