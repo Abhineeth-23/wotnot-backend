@@ -1,7 +1,7 @@
 fastapi==0.111.0
 uvicorn[standard]==0.24.0
-langchain==0.1.199
-langchain-communities==0.0.36
+langchain==0.3.27      # Latest stable release that works with Pydantic v2
+langchain-community==0.0.352
 langchain-openai==0.0.16
 pydantic==2.7.2
 requests==2.32.0
