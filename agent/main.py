@@ -2,8 +2,9 @@ import os
 import json
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from langchain.agents import create_openapi_agent
-from langchain_community.agent_toolkits.openapi.spec import OpenAPISpec
+# CORRECTED IMPORTS: These are the new, correct locations for the functions
+from langchain_community.agent_toolkits.openapi.base import create_openapi_agent
+from langchain_community.utilities.openapi import OpenAPISpec
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 
@@ -36,12 +37,13 @@ if not os.environ.get("OPENAI_API_KEY"):
     raise ValueError("Missing required environment variable: OPENAI_API_KEY")
 
 # -----------------------------
-# Agent 1: OpenAPI agent (WotNot with OpenAI GPT) - NEW METHOD
+# Agent 1: OpenAPI agent (WotNot with OpenAI GPT)
 # -----------------------------
 try:
     with open(OPENAPI_PATH, "r") as f:
         openapi_raw = f.read()
 
+    # The spec is now loaded using from_text which is part of the class itself
     spec = OpenAPISpec.from_text(openapi_raw)
 
     llm_agent = ChatOpenAI(
@@ -50,7 +52,7 @@ try:
         openai_api_key=os.environ.get("OPENAI_API_KEY")
     )
 
-    # This is the new, more robust way to create the agent
+    # Using the new, more robust way to create the agent
     agent = create_openapi_agent(
         llm=llm_agent,
         spec=spec,
@@ -68,15 +70,13 @@ async def run_agent(request: Request):
         raise HTTPException(status_code=400, detail="Prompt is required.")
     
     try:
-        # Note: The input format for invoke might differ slightly with the new agent.
-        # We start with the standard way.
         result = agent.invoke({"input": prompt})
         return {"response": result.get("output")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Agent execution failed: {str(e)}")
 
 # -----------------------------
-# Agent 2: Diwali Greeting (OpenAI GPT) - No changes needed here
+# Agent 2: Diwali Greeting (OpenAI GPT)
 # -----------------------------
 try:
     llm_greeting = ChatOpenAI(
