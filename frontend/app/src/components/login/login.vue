@@ -65,8 +65,8 @@ export default {
       const toast = useToast();
       this.isLoading = true;
 
-      // The backend's /login endpoint expects 'application/x-www-form-urlencoded'
-      const body = new URLSearchParams({
+      // The backend expects JSON, so we send JSON.
+      const body = JSON.stringify({
         username: this.username,
         password: this.password
       });
@@ -74,27 +74,27 @@ export default {
       try {
         const response = await fetch(`${this.apiUrl}/login`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: { 'Content-Type': 'application/json' },
           body: body
         });
 
-        // CRITICAL FIX: Check if the response was successful before parsing JSON
+        // This is the critical logic that prevents the crash.
+        // It checks if the response was successful before trying to parse the body.
         if (!response.ok) {
           let errorMessage = `Login failed: ${response.status}`;
-          // Try to get a more specific error from the backend's JSON response
+          // Try to get a more specific error from the backend
           try {
             const errorData = await response.json();
             errorMessage = errorData.detail || errorMessage;
           } catch (e) {
-            // This runs if the error response body was empty, preventing the crash
+            // This runs if the error response was empty, preventing the crash
             console.error("Could not parse error response JSON. The response was likely empty.", e);
             errorMessage = "Invalid credentials or server error.";
           }
-          // Throw an error to be caught by the catch block below
           throw new Error(errorMessage);
         }
 
-        // This code only runs if response.ok was true
+        // This code only runs if the login was successful
         const data = await response.json();
         if (data.access_token) {
           localStorage.setItem('token', data.access_token);
@@ -104,7 +104,6 @@ export default {
           throw new Error("Login failed: No access token received.");
         }
       } catch (error) {
-        // This catch block now handles all errors gracefully
         toast.error(error.message || 'A network error occurred. Please try again.');
         console.error('Login Error:', error);
       } finally {
