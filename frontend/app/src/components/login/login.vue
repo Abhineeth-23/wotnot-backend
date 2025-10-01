@@ -65,36 +65,36 @@ export default {
       const toast = useToast();
       this.isLoading = true;
 
-      // The backend expects JSON, so we send JSON.
-      const body = JSON.stringify({
+      // FIX: The backend's default login expects this 'form-urlencoded' format.
+      const body = new URLSearchParams({
         username: this.username,
         password: this.password
       });
 
       try {
+        // FIX: Check if apiUrl is defined before making the call.
+        if (!this.apiUrl) {
+          throw new Error("API URL is not configured. Please check the environment variables.");
+        }
+
         const response = await fetch(`${this.apiUrl}/login`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: body
         });
 
-        // This is the critical logic that prevents the crash.
-        // It checks if the response was successful before trying to parse the body.
         if (!response.ok) {
           let errorMessage = `Login failed: ${response.status}`;
-          // Try to get a more specific error from the backend
           try {
             const errorData = await response.json();
             errorMessage = errorData.detail || errorMessage;
           } catch (e) {
-            // This runs if the error response was empty, preventing the crash
             console.error("Could not parse error response JSON. The response was likely empty.", e);
             errorMessage = "Invalid credentials or server error.";
           }
           throw new Error(errorMessage);
         }
 
-        // This code only runs if the login was successful
         const data = await response.json();
         if (data.access_token) {
           localStorage.setItem('token', data.access_token);
