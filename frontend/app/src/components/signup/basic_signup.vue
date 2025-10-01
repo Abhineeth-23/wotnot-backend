@@ -1,9 +1,7 @@
 <template>
-  <div class="bg-container">
-    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
-      <h2
-        class="text-2xl sm:text-2xl font-semibold text-center text-gray-800 mb-4"
-      >
+  <main class="bg-container">
+    <div class="w-full max-w-sm bg-white p-8 rounded-lg shadow-lg">
+      <h2 class="text-2xl sm:text-2xl font-semibold text-center text-gray-800 mb-4">
         Get started with <span class="logo">WotNot</span>
       </h2>
 
@@ -11,9 +9,7 @@
 
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <div class="w-full">
-          <label for="username" class="block text-sm font-medium text-gray-700"
-            >Business Name</label
-          >
+          <label for="username" class="block text-sm font-medium text-gray-700">Business Name</label>
           <input
             type="text"
             id="username"
@@ -25,9 +21,7 @@
         </div>
 
         <div class="w-full">
-          <label for="email" class="block text-sm font-medium text-gray-700"
-            >Business Email Address</label
-          >
+          <label for="email" class="block text-sm font-medium text-gray-700">Business Email Address</label>
           <input
             type="email"
             id="email"
@@ -39,9 +33,7 @@
         </div>
 
         <div class="w-full">
-          <label for="password" class="block text-sm font-medium text-gray-700"
-            >Password</label
-          >
+          <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
           <input
             type="password"
             id="password"
@@ -62,17 +54,9 @@
         <div class="mt-4 text-sm text-center">
           <p class="mb-2 text-sm">
             By signing up you agree to the
-            <router-link
-              to="/terms"
-              class="text-[#075e54] font-semibold"
-              >Terms</router-link
-            >
+            <router-link to="/terms" class="text-[#075e54] font-semibold">Terms</router-link>
             and
-            <router-link
-              to="/privacy"
-              class="text-[#075e54] font-semibold"
-              >Privacy Policy</router-link
-            >
+            <router-link to="/privacy" class="text-[#075e54] font-semibold">Privacy Policy</router-link>
           </p>
         </div>
         
@@ -130,14 +114,10 @@ export default {
       return zxcvbn(this.password || "").score;
     },
     strengthLabel() {
-      return ["Very Weak", "Weak", "Fair", "Good", "Strong"][
-        this.strengthScore
-      ];
+      return ["Very Weak", "Weak", "Fair", "Good", "Strong"][this.strengthScore];
     },
     strengthColor() {
-      return ["#e53e3e", "#dd6b20", "#d69e2e", "#38a169", "#3182ce"][
-        this.strengthScore
-      ];
+      return ["#e53e3e", "#dd6b20", "#d69e2e", "#38a169", "#3182ce"][this.strengthScore];
     },
     strengthWidth() {
       return `${(this.strengthScore / 4) * 100}%`;
@@ -163,9 +143,7 @@ export default {
           body: JSON.stringify(formData),
         });
         
-        // This is the crucial part: Check if the request was a success
         if (!response.ok) {
-          // If not, try to get the error message from the backend
           const errorData = await response.json();
           throw new Error(errorData.detail || "Failed to create account.");
         }
@@ -174,17 +152,12 @@ export default {
 
         if (data.success) {
           toast.success("Account created successfully! Please log in.");
-          // Reset form
-          this.username = "";
-          this.email = "";
-          this.password = "";
           this.$router.push("/"); // Redirect to login page
         }
       } catch (error) {
-        // This will catch both network errors and the error we threw above
         toast.error(error.message);
+        console.error('Signup Error:', error);
       } finally {
-        // This runs whether the request succeeded or failed
         this.isLoading = false;
       }
     },
@@ -200,7 +173,7 @@ export default {
   font-weight: 800;
   margin: 8px 0;
   padding-right: 30px;
-  font-size: 30px;
+  font-size: xx-large;
   color: #075e54;
 }
 .bg-container {
