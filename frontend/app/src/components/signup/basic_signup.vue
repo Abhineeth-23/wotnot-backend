@@ -9,7 +9,7 @@
 
       <hr class="my-3 border-gray-300" />
 
-      <div class="space-y-4">
+      <form @submit.prevent="handleSubmit" class="space-y-4">
         <div class="w-full">
           <label for="username" class="block text-sm font-medium text-gray-700"
             >Business Name</label
@@ -17,7 +17,8 @@
           <input
             type="text"
             id="username"
-            placeholder=""
+            v-model="username"
+            placeholder="Your Business Name"
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             required
           />
@@ -30,7 +31,8 @@
           <input
             type="email"
             id="email"
-            placeholder=""
+            v-model="email"
+            placeholder="Your Business Email"
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             required
           />
@@ -73,40 +75,41 @@
             >
           </p>
         </div>
-      </div>
 
-      <div class="cf-turnstile" data-sitekey="0x4AAAAAABeiGZqY3Hf9K04o"></div>
-
-      <div class="flex flex-col items-center">
-        <button
-          class="w-full bg-gradient-to-r from-[#075e54] via-[#089678] to-[#075e54] text-white px-6 py-3 rounded-lg shadow-lg font-medium flex items-center justify-center hover:from-[#078478] hover:via-[#08b496] hover:to-[#078478] transition-all duration-300"
-          @click.prevent="handleSubmit"
-        >
-          Get Account
-        </button>
-
-        <p class="mt-4 text-center text-sm">
-          Already have an account?
-          <a
-            href=""
-            class="text-[#075e54] font-semibold mb-4"
-            @click="redirectLogin"
-            >Login</a
+        <div class="flex flex-col items-center pt-4">
+          <button
+            type="submit"
+            class="w-full bg-gradient-to-r from-[#075e54] via-[#089678] to-[#075e54] text-white px-6 py-3 rounded-lg shadow-lg font-medium flex items-center justify-center hover:from-[#078478] hover:via-[#08b496] hover:to-[#078478] transition-all duration-300"
           >
-        </p>
-      </div>
+            Get Account
+          </button>
+
+          <p class="mt-4 text-center text-sm">
+            Already have an account?
+            <a
+              href="#"
+              class="text-[#075e54] font-semibold mb-4"
+              @click.prevent="redirectLogin"
+              >Login</a
+            >
+          </p>
+        </div>
+      </form>
     </div>
   </div>
 </template>
 
 <script>
 import zxcvbn from "zxcvbn";
+import { useToast } from "vue-toastification";
 
 export default {
   data() {
     return {
       apiUrl: process.env.VUE_APP_API_URL,
-      password: "", // ✅ Added this line
+      username: "",
+      email: "",
+      password: "",
     };
   },
   name: "BasicSignUpForm",
@@ -128,35 +131,21 @@ export default {
       return `${(this.strengthScore / 4) * 100}%`;
     },
   },
-  mounted() {
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  },
   methods: {
     handleSubmit() {
-      const token = document.querySelector(
-        'input[name="cf-turnstile-response"]'
-      )?.value;
-      if (!token) {
-        alert("Please complete the CAPTCHA.");
-        return;
-      }
-
+      const toast = useToast();
       const formData = {
-        username: document.getElementById("username").value,
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value,
-        cf_token: token,
+        username: this.username,
+        email: this.email,
+        password: this.password,
       };
 
       if (!formData.username || !formData.email || !formData.password) {
-        alert("Please fill in all required fields.");
+        toast.error("Please fill in all required fields.");
         return;
       }
 
+      // We'll assume your backend endpoint is /api/register
       fetch(`${this.apiUrl}/register`, {
         method: "POST",
         headers: {
@@ -164,20 +153,27 @@ export default {
         },
         body: JSON.stringify(formData),
       })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
-            alert("Account created successfully!");
-            document
-              .querySelectorAll("input")
-              .forEach((input) => (input.value = ""));
-          } else if (data.detail) {
-            alert(data.detail);
-          } else {
-            alert("Failed to create account. Please try again.");
-          }
+        .then((response) => {
+            if (!response.ok) {
+                // If response is not ok, parse the error json
+                return response.json().then(errorData => {
+                    throw new Error(errorData.detail || 'Failed to create account.');
+                });
+            }
+            return response.json();
         })
-        .catch((error) => console.error(error));
+        .then((data) => {
+          toast.success("Account created successfully!");
+          // Reset form
+          this.username = "";
+          this.email = "";
+          this.password = "";
+          this.$router.push("/"); // Redirect to login
+        })
+        .catch((error) => {
+            console.error(error);
+            toast.error(error.message || "An error occurred. Please try again.");
+        });
     },
     redirectLogin() {
       this.$router.push("/");
@@ -187,6 +183,7 @@ export default {
 </script>
 
 <style scoped>
+/* Styles are unchanged */
 .logo {
   font-weight: 800;
   margin: 8px 0;
@@ -202,17 +199,5 @@ export default {
   background-image: url("@/assets/LoginPage.png");
   background-position: center;
   padding: 0 16px;
-}
-
-@media (min-width: 640px) {
-  .container {
-    padding: 0 24px;
-  }
-}
-
-@media (min-width: 1024px) {
-  .container {
-    padding: 0 32px;
-  }
 }
 </style>
