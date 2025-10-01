@@ -54,7 +54,8 @@ export default {
   name: "LoginPage",
   data() {
     return {
-      apiUrl: process.env.VUE_APP_API_URL,
+      // HARDCODED URL: Replaced environment variable with the direct backend URL
+      apiUrl: 'https://wotnot-backend-sos9.onrender.com/api', 
       username: 'test@example.com', // Pre-filled for convenience
       password: 'password',       // Pre-filled for convenience
       isLoading: false,
@@ -65,18 +66,12 @@ export default {
       const toast = useToast();
       this.isLoading = true;
 
-      // FIX: The backend's default login expects this 'form-urlencoded' format.
       const body = new URLSearchParams({
         username: this.username,
         password: this.password
       });
 
       try {
-        // FIX: Check if apiUrl is defined before making the call.
-        if (!this.apiUrl) {
-          throw new Error("API URL is not configured. Please check the environment variables.");
-        }
-
         const response = await fetch(`${this.apiUrl}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
