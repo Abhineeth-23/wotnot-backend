@@ -144,8 +144,18 @@ export default {
         });
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || "Failed to create account.");
+          // New, more robust error handling
+          let errorMessage = `Error: ${response.status} ${response.statusText}`;
+          try {
+            // Try to parse a JSON error from the backend, but don't assume it exists
+            const errorData = await response.json();
+            errorMessage = errorData.detail || errorMessage;
+          } catch (e) {
+            // If parsing fails, the response body was not valid JSON (e.g., empty).
+            // We'll just use the generic HTTP error message.
+            console.error("Could not parse error response as JSON:", e);
+          }
+          throw new Error(errorMessage);
         }
 
         const data = await response.json();
@@ -153,6 +163,9 @@ export default {
         if (data.success) {
           toast.success("Account created successfully! Please log in.");
           this.$router.push("/"); // Redirect to login page
+        } else {
+          // Handle cases where the server responds with 200 OK but indicates failure
+          throw new Error(data.message || "An unknown error occurred.");
         }
       } catch (error) {
         toast.error(error.message);
