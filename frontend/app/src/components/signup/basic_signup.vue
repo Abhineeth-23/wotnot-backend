@@ -4,9 +4,7 @@
       <h2 class="text-2xl sm:text-2xl font-semibold text-center text-gray-800 mb-4">
         Get started with <span class="logo">WotNot</span>
       </h2>
-
       <hr class="my-3 border-gray-300" />
-
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <div class="w-full">
           <label for="username" class="block text-sm font-medium text-gray-700">Business Name</label>
@@ -19,7 +17,6 @@
             required
           />
         </div>
-
         <div class="w-full">
           <label for="email" class="block text-sm font-medium text-gray-700">Business Email Address</label>
           <input
@@ -31,7 +28,6 @@
             required
           />
         </div>
-
         <div class="w-full">
           <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
           <input
@@ -50,7 +46,6 @@
             {{ strengthLabel }}
           </p>
         </div>
-
         <div class="mt-4 text-sm text-center">
           <p class="mb-2 text-sm">
             By signing up you agree to the
@@ -59,7 +54,6 @@
             <router-link to="/privacy" class="text-[#075e54] font-semibold">Privacy Policy</router-link>
           </p>
         </div>
-        
         <div class="flex flex-col items-center">
           <button
             type="submit"
@@ -80,7 +74,6 @@
           </button>
         </div>
       </form>
-
       <p class="mt-4 text-center text-sm">
         Already have an account?
         <a
@@ -89,9 +82,9 @@
           @click.prevent="redirectLogin"
           >Login</a
         >
-      </p>
+      </a
     </div>
-  </div>
+  </main>
 </template>
 
 <script>
@@ -110,18 +103,10 @@ export default {
     };
   },
   computed: {
-    strengthScore() {
-      return zxcvbn(this.password || "").score;
-    },
-    strengthLabel() {
-      return ["Very Weak", "Weak", "Fair", "Good", "Strong"][this.strengthScore];
-    },
-    strengthColor() {
-      return ["#e53e3e", "#dd6b20", "#d69e2e", "#38a169", "#3182ce"][this.strengthScore];
-    },
-    strengthWidth() {
-      return `${(this.strengthScore / 4) * 100}%`;
-    },
+    strengthScore() { return zxcvbn(this.password || "").score; },
+    strengthLabel() { return ["Very Weak", "Weak", "Fair", "Good", "Strong"][this.strengthScore]; },
+    strengthColor() { return ["#e53e3e", "#dd6b20", "#d69e2e", "#38a169", "#3182ce"][this.strengthScore]; },
+    strengthWidth() { return `${(this.strengthScore / 4) * 100}%`; },
   },
   methods: {
     async handleSubmit() {
@@ -137,22 +122,16 @@ export default {
       try {
         const response = await fetch(`${this.apiUrl}/register`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         });
-        
+
         if (!response.ok) {
-          // New, more robust error handling
-          let errorMessage = `Error: ${response.status} ${response.statusText}`;
+          let errorMessage = `Error: ${response.status}`;
           try {
-            // Try to parse a JSON error from the backend, but don't assume it exists
             const errorData = await response.json();
             errorMessage = errorData.detail || errorMessage;
           } catch (e) {
-            // If parsing fails, the response body was not valid JSON (e.g., empty).
-            // We'll just use the generic HTTP error message.
             console.error("Could not parse error response as JSON:", e);
           }
           throw new Error(errorMessage);
@@ -162,9 +141,8 @@ export default {
 
         if (data.success) {
           toast.success("Account created successfully! Please log in.");
-          this.$router.push("/"); // Redirect to login page
+          this.$router.push("/");
         } else {
-          // Handle cases where the server responds with 200 OK but indicates failure
           throw new Error(data.message || "An unknown error occurred.");
         }
       } catch (error) {
@@ -182,21 +160,7 @@ export default {
 </script>
 
 <style scoped>
-.logo {
-  font-weight: 800;
-  margin: 8px 0;
-  padding-right: 30px;
-  font-size: xx-large;
-  color: #075e54;
-}
-.bg-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background-image: url("@/assets/LoginPage.png");
-  background-position: center;
-  padding: 0 16px;
-}
+.logo { font-weight: 800; margin: 8px 0; padding-right: 30px; font-size: xx-large; color: #075e54; }
+.bg-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; background-image: url("@/assets/LoginPage.png"); background-position: center; padding: 0 16px; }
 </style>
 
