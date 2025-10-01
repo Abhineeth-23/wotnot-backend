@@ -65,6 +65,7 @@ export default {
       const toast = useToast();
       this.isLoading = true;
 
+      // The backend's /login endpoint expects 'application/x-www-form-urlencoded'
       const body = new URLSearchParams({
         username: this.username,
         password: this.password
@@ -77,7 +78,7 @@ export default {
           body: body
         });
 
-        // THIS IS THE CRITICAL FIX: Check if the response was successful
+        // CRITICAL FIX: Check if the response was successful before parsing JSON
         if (!response.ok) {
           let errorMessage = `Login failed: ${response.status}`;
           // Try to get a more specific error from the backend's JSON response
@@ -87,6 +88,7 @@ export default {
           } catch (e) {
             // This runs if the error response body was empty, preventing the crash
             console.error("Could not parse error response JSON. The response was likely empty.", e);
+            errorMessage = "Invalid credentials or server error.";
           }
           // Throw an error to be caught by the catch block below
           throw new Error(errorMessage);
@@ -99,7 +101,6 @@ export default {
           toast.success("Login successful!");
           this.$router.push('/dashboard');
         } else {
-          // This case is for a successful response that's missing a token
           throw new Error("Login failed: No access token received.");
         }
       } catch (error) {
