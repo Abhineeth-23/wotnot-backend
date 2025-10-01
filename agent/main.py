@@ -1,119 +1,112 @@
 import os
-import json
 import requests
+from fastapi import FastAPI, Request, HTTPException, APIRouter
 from openai import OpenAI
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 
-# --- 1. FastAPI App Initialization ---
-app = FastAPI(
-    title="AI Backend (Direct Method)",
-    description="A stable backend using direct library calls instead of LangChain.",
-    version="2.0.0"
-)
+# -----------------------------
+# Environment Variable Checks
+# -----------------------------
+# This runs when the app starts to ensure everything is configured.
+if not os.environ.get("OPENAI_API_KEY"):
+    raise ValueError("The OPENAI_API_KEY environment variable is not set. Please add it in Render.")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # For production, restrict this to your frontend's domain
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# --- 2. Configuration and Sanity Checks ---
-if "OPENAI_API_KEY" not in os.environ:
-    raise ValueError("CRITICAL ERROR: OPENAI_API_KEY environment variable is not set.")
-
-# Initialize the OpenAI client
+# -----------------------------
+# Initialize OpenAI Client
+# -----------------------------
+# This is created once when the application starts.
 try:
     openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 except Exception as e:
     raise RuntimeError(f"Failed to initialize OpenAI client: {e}") from e
 
-# Define the base URL for the WotNot API
-WOTNOT_API_BASE_URL = "https://api.wotnot.io"
+# -----------------------------
+# FastAPI App & API Router Setup
+# -----------------------------
+# All our endpoints will be defined on the `router` object.
+# This makes it easy to add a global prefix.
+app = FastAPI(
+    title="AI Agent Backend",
+    description="A simple backend for the AI Agent Hub.",
+    version="1.0.0"
+)
+router = APIRouter()
 
-# --- 3. API Endpoints ---
-@app.get("/")
+# --- API Endpoints ---
+
+@router.get("/")
 def read_root():
-    """A simple endpoint to confirm the server is running."""
-    return {"status": "AI backend is running successfully!"}
+    """A simple root endpoint to confirm the API is running."""
+    return {"status": "AI backend is running"}
 
-@app.post("/call-wotnot/")
-async def call_wotnot_api(request: Request):
-    """
-    Directly calls a WotNot API endpoint. This is a replacement for the agent.
-    
-    Expected JSON body:
-    {
-        "endpoint": "/templates",
-        "method": "GET",
-        "payload": null,
-        "params": {},
-        "headers": {
-            "Authorization": "Bearer YOUR_WOTNOT_TOKEN" 
-        }
-    }
-    """
-    body = await request.json()
-    
-    endpoint = body.get("endpoint")
-    method = body.get("method", "GET").upper()
-    payload = body.get("payload")
-    params = body.get("params")
-    headers = body.get("headers", {})
-
-    if not endpoint:
-        raise HTTPException(status_code=400, detail="The 'endpoint' field is required.")
-
-    full_url = f"{WOTNOT_API_BASE_URL}{endpoint}"
-
-    try:
-        response = requests.request(
-            method=method,
-            url=full_url,
-            headers=headers,
-            params=params,
-            json=payload,
-            timeout=30 # 30-second timeout
-        )
-        
-        # Raise an exception for bad status codes (4xx or 5xx)
-        response.raise_for_status()
-        
-        return response.json()
-
-    except requests.exceptions.HTTPError as http_err:
-        # Try to return the API's error message if possible
-        try:
-            error_details = http_err.response.json()
-        except json.JSONDecodeError:
-            error_details = http_err.response.text
-        raise HTTPException(status_code=http_err.response.status_code, detail=error_details)
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Failed to call WotNot API: {str(e)}")
-
-
-@app.post("/diwali-greet/")
-async def diwali_greeting_endpoint(request: Request):
-    """Generates a Diwali greeting for a given name using the OpenAI API directly."""
+@router.post("/diwali-greet/")
+async def diwali_greeting(request: Request):
+    """Generates a Diwali greeting for a given name using the OpenAI client."""
     body = await request.json()
     name = body.get("name", "Friend")
     
     prompt = f"Write a short, warm, and festive Diwali greeting message for {name}."
     
     try:
-        completion = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+        chat_completion = openai_client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that writes greeting messages."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
             ],
-            temperature=0.7
+            model="gpt-3.5-turbo",
         )
-        greeting = completion.choices[0].message.content
+        greeting = chat_completion.choices[0].message.content
         return {"greeting": greeting}
     except Exception as e:
-        print(f"OpenAI API error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate greeting: {str(e)}")
+        print(f"Greeting generation error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate the greeting.")
+
+@router.post("/call-wotnot/")
+async def call_wotnot_api(request: Request):
+    """
+    A direct proxy to the WotNot API. The frontend specifies the endpoint and payload.
+    This is more reliable than an AI agent for direct, known tasks.
+    """
+    body = await request.json()
+    endpoint = body.get("endpoint")
+    payload = body.get("payload", {})
+    wotnot_api_key = os.environ.get("WOTNOT_API_KEY") # You would need to add this for real calls
+
+    if not endpoint:
+        raise HTTPException(status_code=400, detail="An 'endpoint' is required in the request body.")
+    if not wotnot_api_key:
+        raise HTTPException(status_code=500, detail="WOTNOT_API_KEY is not configured on the server.")
+
+    wotnot_base_url = "https://api.wotnot.io"
+    full_url = f"{wotnot_base_url}{endpoint}"
+    headers = {
+        "Authorization": f"Bearer {wotnot_api_key}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        # For simplicity, this example only handles POST requests.
+        # A real implementation would check the method (GET, POST, etc.).
+        response = requests.post(full_url, headers=headers, json=payload, timeout=15)
+        
+        # Raise an exception if the call failed
+        response.raise_for_status() 
+        
+        return response.json()
+    except requests.exceptions.HTTPError as http_err:
+        # The API returned an error status code (4xx or 5xx)
+        print(f"WotNot API HTTP error: {http_err} - {response.text}")
+        raise HTTPException(status_code=response.status_code, detail=response.json())
+    except Exception as e:
+        # Other errors like network issues
+        print(f"WotNot API call failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to communicate with the WotNot API.")
+
+
+# --- Mount the Router ---
+# This line adds all the routes from our router to the main app,
+# with a global prefix of /api.
+# Now, your endpoints will be available at /api/diwali-greet/, /api/call-wotnot/, etc.
+app.include_router(router, prefix="/api")
 
