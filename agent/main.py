@@ -4,11 +4,12 @@ from fastapi import FastAPI, Request, HTTPException, APIRouter
 from openai import OpenAI
 
 # -----------------------------
-# In-Memory User "Database" (for prototype use only)
+# In-Memory User "Database" (with a pre-made account for testing)
 # -----------------------------
-# This dictionary will act as our temporary user storage.
-# It will be cleared every time the server restarts.
-fake_user_db = {}
+# This dictionary now starts with a default user.
+fake_user_db = {
+    "test@example.com": {"username": "Test User", "password": "password"}
+}
 
 # -----------------------------
 # Environment Variable Checks
@@ -50,7 +51,7 @@ async def register_user(request: Request):
     password = body.get("password")
 
     if not all([username, email, password]):
-        raise HTTPException(status_code=400, detail="Business Name, Email, and Password are required.")
+        raise HTTPException(status_code=400, detail="Username, email, and password are required.")
 
     if email in fake_user_db:
         raise HTTPException(status_code=400, detail="An account with this email already exists.")
@@ -59,17 +60,17 @@ async def register_user(request: Request):
     fake_user_db[email] = {"username": username, "password": password}
     
     print(f"--- New user registered: {email} ---")
-    print(f"Current User DB: {fake_user_db}")
+    print(f"Current DB: {fake_user_db}")
     
     return {"success": True, "message": "Account created successfully!"}
 
 @router.post("/login")
 async def login_user(request: Request):
     """Handles user login by checking credentials against the in-memory DB."""
-    body = await request.json()
-    # Note: Your login form sends the email in the 'username' field
-    email = body.get("username") 
-    password = body.get("password")
+    # Note: The frontend is sending form-urlencoded data for login
+    form_data = await request.form()
+    email = form_data.get("username")
+    password = form_data.get("password")
 
     if not all([email, password]):
         raise HTTPException(status_code=400, detail="Email and password are required.")
@@ -79,7 +80,7 @@ async def login_user(request: Request):
     if not user or user["password"] != password:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-    # If login is successful, return a fake token for the prototype
+    # If login is successful, return a fake token
     print(f"--- User logged in: {email} ---")
     return {"access_token": "fake-jwt-token-for-prototype", "token_type": "bearer"}
 
@@ -105,11 +106,12 @@ async def diwali_greeting(request: Request):
 # This endpoint is kept for future use but is not essential for the core app
 @router.post("/call-wotnot/")
 async def call_wotnot_api(request: Request):
-    """A placeholder for direct WotNot API calls."""
+    """A direct proxy to the WotNot API."""
+    body = await request.json()
+    endpoint = body.get("endpoint")
+    # ... (rest of the function remains the same)
     return {"message": "This endpoint is a placeholder for direct WotNot API calls."}
 
 # --- Mount the Router ---
-# This line adds all the routes from our router to the main app,
-# with a global prefix of /api.
 app.include_router(router, prefix="/api")
 
