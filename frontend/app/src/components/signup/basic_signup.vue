@@ -107,7 +107,6 @@ export default {
     strengthColor() { return ["#e53e3e", "#dd6b20", "#d69e2e", "#38a169", "#3182ce"][this.strengthScore]; },
     strengthWidth() { return `${(this.strengthScore / 4) * 100}%`; },
   },
-  methods:.
   methods: {
     async handleSubmit() {
       const toast = useToast();
