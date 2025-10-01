@@ -68,38 +68,44 @@ export default {
       username: '',
       password: '',
       errorMessage: '',
-      isLoading: false, 
+      isLoading: false,
     };
   },
   methods: {
     async handleLogin() {
-      this.isLoading = true; // Set loading state
-      fetch(`${this.apiUrl}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          username: this.username,
-          password: this.password
-        })
-      })
-        .then(response => response.json())
-        .then(data => {
-          if (data.access_token) {
-            // Store the token in localStorage or Vuex (if using Vuex)
-            localStorage.setItem('token', data.access_token);
-            // Redirect to the dashboard
-            console.log()
-            this.$router.push('/dashboard');
-          } else {
-            // Handle login error
-            alert('Invalid Credentials Credentials');
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
+      this.isLoading = true; // Start loading
+      this.errorMessage = ''; // Clear previous errors
+
+      try {
+        const response = await fetch(`${this.apiUrl}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            username: this.username,
+            password: this.password
+          })
         });
+
+        const data = await response.json();
+
+        if (response.ok && data.access_token) {
+          // Success: Store the token and redirect
+          localStorage.setItem('token', data.access_token);
+          this.$router.push('/dashboard');
+        } else {
+          // Handle API error (e.g., 401 Unauthorized)
+          this.errorMessage = data.detail || 'Invalid username or password.';
+        }
+      } catch (error) {
+        // Handle network errors
+        console.error('Login error:', error);
+        this.errorMessage = 'A network error occurred. Please try again later.';
+      } finally {
+        // This block will run whether the login succeeds or fails
+        this.isLoading = false; // Stop loading
+      }
     },
     redirectSignup() {
       this.$router.push("/signup");
