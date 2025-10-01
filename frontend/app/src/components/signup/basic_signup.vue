@@ -32,7 +32,7 @@
             type="email"
             id="email"
             v-model="email"
-            placeholder="Your Business Email"
+            placeholder="your@email.com"
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             required
           />
@@ -46,7 +46,7 @@
             type="password"
             id="password"
             v-model="password"
-            placeholder="Set Password"
+            placeholder="Set a strong password"
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             required
           />
@@ -63,38 +63,49 @@
           <p class="mb-2 text-sm">
             By signing up you agree to the
             <router-link
-              to="/terms-and-privacy#terms-and-conditions"
+              to="/terms"
               class="text-[#075e54] font-semibold"
               >Terms</router-link
             >
             and
             <router-link
-              to="/terms-and-privacy#privacy-policy"
+              to="/privacy"
               class="text-[#075e54] font-semibold"
               >Privacy Policy</router-link
             >
           </p>
         </div>
-
-        <div class="flex flex-col items-center pt-4">
+        
+        <div class="flex flex-col items-center">
           <button
             type="submit"
             class="w-full bg-gradient-to-r from-[#075e54] via-[#089678] to-[#075e54] text-white px-6 py-3 rounded-lg shadow-lg font-medium flex items-center justify-center hover:from-[#078478] hover:via-[#08b496] hover:to-[#078478] transition-all duration-300"
+            :disabled="isLoading"
           >
-            Get Account
+            <span v-if="!isLoading">Get Account</span>
+            <div v-else class="flex items-center">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              Creating Account...
+            </div>
           </button>
-
-          <p class="mt-4 text-center text-sm">
-            Already have an account?
-            <a
-              href="#"
-              class="text-[#075e54] font-semibold mb-4"
-              @click.prevent="redirectLogin"
-              >Login</a
-            >
-          </p>
         </div>
       </form>
+
+      <p class="mt-4 text-center text-sm">
+        Already have an account?
+        <a
+          href="#"
+          class="text-[#075e54] font-semibold mb-4"
+          @click.prevent="redirectLogin"
+          >Login</a
+        >
+      </p>
     </div>
   </div>
 </template>
@@ -104,15 +115,16 @@ import zxcvbn from "zxcvbn";
 import { useToast } from "vue-toastification";
 
 export default {
+  name: "BasicSignUpForm",
   data() {
     return {
       apiUrl: process.env.VUE_APP_API_URL,
       username: "",
       email: "",
       password: "",
+      isLoading: false,
     };
   },
-  name: "BasicSignUpForm",
   computed: {
     strengthScore() {
       return zxcvbn(this.password || "").score;
@@ -132,48 +144,49 @@ export default {
     },
   },
   methods: {
-    handleSubmit() {
+    async handleSubmit() {
       const toast = useToast();
+      this.isLoading = true;
+
       const formData = {
         username: this.username,
         email: this.email,
         password: this.password,
       };
 
-      if (!formData.username || !formData.email || !formData.password) {
-        toast.error("Please fill in all required fields.");
-        return;
-      }
+      try {
+        const response = await fetch(`${this.apiUrl}/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        });
+        
+        // This is the crucial part: Check if the request was a success
+        if (!response.ok) {
+          // If not, try to get the error message from the backend
+          const errorData = await response.json();
+          throw new Error(errorData.detail || "Failed to create account.");
+        }
 
-      // We'll assume your backend endpoint is /api/register
-      fetch(`${this.apiUrl}/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
-        .then((response) => {
-            if (!response.ok) {
-                // If response is not ok, parse the error json
-                return response.json().then(errorData => {
-                    throw new Error(errorData.detail || 'Failed to create account.');
-                });
-            }
-            return response.json();
-        })
-        .then((data) => {
-          toast.success("Account created successfully!");
+        const data = await response.json();
+
+        if (data.success) {
+          toast.success("Account created successfully! Please log in.");
           // Reset form
           this.username = "";
           this.email = "";
           this.password = "";
-          this.$router.push("/"); // Redirect to login
-        })
-        .catch((error) => {
-            console.error(error);
-            toast.error(error.message || "An error occurred. Please try again.");
-        });
+          this.$router.push("/"); // Redirect to login page
+        }
+      } catch (error) {
+        // This will catch both network errors and the error we threw above
+        toast.error(error.message);
+      } finally {
+        // This runs whether the request succeeded or failed
+        this.isLoading = false;
+      }
     },
     redirectLogin() {
       this.$router.push("/");
@@ -183,7 +196,6 @@ export default {
 </script>
 
 <style scoped>
-/* Styles are unchanged */
 .logo {
   font-weight: 800;
   margin: 8px 0;
@@ -201,3 +213,4 @@ export default {
   padding: 0 16px;
 }
 </style>
+
