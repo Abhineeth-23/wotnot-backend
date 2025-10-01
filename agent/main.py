@@ -1,12 +1,12 @@
 import os
 import requests
 from fastapi import FastAPI, Request, HTTPException, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
 
 # -----------------------------
-# In-Memory User "Database" (with a pre-made account for testing)
+# In-Memory User "Database"
 # -----------------------------
-# This dictionary now starts with a default user.
 fake_user_db = {
     "test@example.com": {"username": "Test User", "password": "password"}
 }
@@ -15,7 +15,7 @@ fake_user_db = {
 # Environment Variable Checks
 # -----------------------------
 if not os.environ.get("OPENAI_API_KEY"):
-    raise ValueError("The OPENAI_API_KEY environment variable is not set. Please add it in Render.")
+    raise ValueError("The OPENAI_API_KEY environment variable is not set.")
 
 # -----------------------------
 # Initialize OpenAI Client
@@ -33,14 +33,44 @@ app = FastAPI(
     description="A simple backend for the AI Agent Hub.",
     version="1.0.0"
 )
+
+# --- CORS MIDDLEWARE CONFIGURATION (THE FIX) ---
+# This block tells the backend to trust your frontend.
+origins = [
+    "https://wotnot-frontend.onrender.com",  # Your live frontend URL
+    "http://localhost:8080",               # For local development
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 router = APIRouter()
 
 # --- API Endpoints ---
+# (Your /register, /login, and other endpoints remain the same)
+@router.post("/login")
+async def login_user(request: Request):
+    """Handles user login by checking credentials against the in-memory DB."""
+    # NOTE: Your login.vue sends 'x-www-form-urlencoded', so we use request.form()
+    form_data = await request.form()
+    email = form_data.get("username")
+    password = form_data.get("password")
 
-@router.get("/")
-def read_root():
-    """A simple root endpoint to confirm the API is running."""
-    return {"status": "AI backend is running"}
+    if not all([email, password]):
+        raise HTTPException(status_code=400, detail="Email and password are required.")
+
+    user = fake_user_db.get(email)
+    
+    if not user or user["password"] != password:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    print(f"--- User logged in: {email} ---")
+    return {"access_token": "fake-jwt-token-for-prototype", "token_type": "bearer"}
 
 @router.post("/register")
 async def register_user(request: Request):
@@ -56,7 +86,6 @@ async def register_user(request: Request):
     if email in fake_user_db:
         raise HTTPException(status_code=400, detail="An account with this email already exists.")
 
-    # Save the new user to our fake database
     fake_user_db[email] = {"username": username, "password": password}
     
     print(f"--- New user registered: {email} ---")
@@ -64,34 +93,11 @@ async def register_user(request: Request):
     
     return {"success": True, "message": "Account created successfully!"}
 
-@router.post("/login")
-async def login_user(request: Request):
-    """Handles user login by checking credentials against the in-memory DB."""
-    # Note: The frontend is sending form-urlencoded data for login
-    form_data = await request.form()
-    email = form_data.get("username")
-    password = form_data.get("password")
-
-    if not all([email, password]):
-        raise HTTPException(status_code=400, detail="Email and password are required.")
-
-    user = fake_user_db.get(email)
-    
-    if not user or user["password"] != password:
-        raise HTTPException(status_code=401, detail="Invalid email or password.")
-
-    # If login is successful, return a fake token
-    print(f"--- User logged in: {email} ---")
-    return {"access_token": "fake-jwt-token-for-prototype", "token_type": "bearer"}
-
 @router.post("/diwali-greet/")
 async def diwali_greeting(request: Request):
-    """Generates a Diwali greeting for a given name."""
     body = await request.json()
     name = body.get("name", "Friend")
-    
     prompt = f"Write a short, warm, and festive Diwali greeting message for {name}."
-    
     try:
         chat_completion = openai_client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
@@ -102,15 +108,6 @@ async def diwali_greeting(request: Request):
     except Exception as e:
         print(f"Greeting generation error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate the greeting.")
-
-# This endpoint is kept for future use but is not essential for the core app
-@router.post("/call-wotnot/")
-async def call_wotnot_api(request: Request):
-    """A direct proxy to the WotNot API."""
-    body = await request.json()
-    endpoint = body.get("endpoint")
-    # ... (rest of the function remains the same)
-    return {"message": "This endpoint is a placeholder for direct WotNot API calls."}
 
 # --- Mount the Router ---
 app.include_router(router, prefix="/api")
