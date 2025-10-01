@@ -6,14 +6,12 @@ from openai import OpenAI
 # -----------------------------
 # Environment Variable Checks
 # -----------------------------
-# This runs when the app starts to ensure everything is configured.
 if not os.environ.get("OPENAI_API_KEY"):
     raise ValueError("The OPENAI_API_KEY environment variable is not set. Please add it in Render.")
 
 # -----------------------------
 # Initialize OpenAI Client
 # -----------------------------
-# This is created once when the application starts.
 try:
     openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 except Exception as e:
@@ -22,8 +20,6 @@ except Exception as e:
 # -----------------------------
 # FastAPI App & API Router Setup
 # -----------------------------
-# All our endpoints will be defined on the `router` object.
-# This makes it easy to add a global prefix.
 app = FastAPI(
     title="AI Agent Backend",
     description="A simple backend for the AI Agent Hub.",
@@ -37,6 +33,34 @@ router = APIRouter()
 def read_root():
     """A simple root endpoint to confirm the API is running."""
     return {"status": "AI backend is running"}
+
+# --- NEW: User Registration Endpoint ---
+@router.post("/register")
+async def register_user(request: Request):
+    """Handles new user registration without CAPTCHA."""
+    body = await request.json()
+    username = body.get("username")
+    email = body.get("email")
+    password = body.get("password")
+
+    if not all([username, email, password]):
+        raise HTTPException(status_code=400, detail="Username, email, and password are required.")
+
+    # --- In a real application, you would do the following: ---
+    # 1. Validate the email format.
+    # 2. Check if the username or email already exists in your database.
+    # 3. Securely hash the password (e.g., using passlib).
+    # 4. Save the new user to your database.
+    
+    # For this prototype, we'll just print the info and return success.
+    print(f"--- New User Registration ---")
+    print(f"Username: {username}")
+    print(f"Email: {email}")
+    print(f"Password: [HIDDEN]")
+    print(f"-----------------------------")
+
+    return {"success": True, "message": "Account created successfully!"}
+
 
 @router.post("/diwali-greet/")
 async def diwali_greeting(request: Request):
@@ -64,14 +88,11 @@ async def diwali_greeting(request: Request):
 
 @router.post("/call-wotnot/")
 async def call_wotnot_api(request: Request):
-    """
-    A direct proxy to the WotNot API. The frontend specifies the endpoint and payload.
-    This is more reliable than an AI agent for direct, known tasks.
-    """
+    """A direct proxy to the WotNot API."""
     body = await request.json()
     endpoint = body.get("endpoint")
     payload = body.get("payload", {})
-    wotnot_api_key = os.environ.get("WOTNOT_API_KEY") # You would need to add this for real calls
+    wotnot_api_key = os.environ.get("WOTNOT_API_KEY") 
 
     if not endpoint:
         raise HTTPException(status_code=400, detail="An 'endpoint' is required in the request body.")
@@ -86,27 +107,18 @@ async def call_wotnot_api(request: Request):
     }
 
     try:
-        # For simplicity, this example only handles POST requests.
-        # A real implementation would check the method (GET, POST, etc.).
         response = requests.post(full_url, headers=headers, json=payload, timeout=15)
-        
-        # Raise an exception if the call failed
         response.raise_for_status() 
-        
         return response.json()
     except requests.exceptions.HTTPError as http_err:
-        # The API returned an error status code (4xx or 5xx)
         print(f"WotNot API HTTP error: {http_err} - {response.text}")
         raise HTTPException(status_code=response.status_code, detail=response.json())
     except Exception as e:
-        # Other errors like network issues
         print(f"WotNot API call failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to communicate with the WotNot API.")
 
 
 # --- Mount the Router ---
-# This line adds all the routes from our router to the main app,
-# with a global prefix of /api.
-# Now, your endpoints will be available at /api/diwali-greet/, /api/call-wotnot/, etc.
+# This adds all routes with a global /api prefix.
 app.include_router(router, prefix="/api")
 
