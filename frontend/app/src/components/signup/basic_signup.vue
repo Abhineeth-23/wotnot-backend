@@ -80,9 +80,8 @@
           href="#"
           class="text-[#075e54] font-semibold mb-4"
           @click.prevent="redirectLogin"
-          >Login</a
-        >
-      </a
+          >Login</a>
+      </p>
     </div>
   </main>
 </template>
@@ -108,6 +107,7 @@ export default {
     strengthColor() { return ["#e53e3e", "#dd6b20", "#d69e2e", "#38a169", "#3182ce"][this.strengthScore]; },
     strengthWidth() { return `${(this.strengthScore / 4) * 100}%`; },
   },
+  methods:.
   methods: {
     async handleSubmit() {
       const toast = useToast();
